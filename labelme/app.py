@@ -1291,7 +1291,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.actions.copy.setEnabled(n_selected)
         self.actions.edit.setEnabled(n_selected)
 
-    def addLabel(self, shape, parent_item=None):
+    def addShape(self, shape, parent_item=None):
         # 使用NestedShapeTreeWidget的addShape方法添加形状
         item = self.shapeList.addShape(shape, parent_item)
         
@@ -1360,7 +1360,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def loadShapes(self, shapes, replace=True):
         self._noSelectionSlot = True
         for shape in shapes:
-            self.addLabel(shape)
+            self.addShape(shape)
         self.shapeList.clearSelection()
         self._noSelectionSlot = False
         self.canvas.loadShapes(shapes, replace=replace)
@@ -1575,7 +1575,7 @@ class MainWindow(QtWidgets.QMainWindow):
             shape = self.canvas.setLastLabel(text, flags)
             shape.group_id = group_id
             shape.description = description
-            self.addLabel(shape)
+            self.addShape(shape)
             self.actions.editMode.setEnabled(True)
             self.actions.undoLastPoint.setEnabled(False)
             self.actions.undo.setEnabled(True)
@@ -2155,7 +2155,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def copyShape(self):
         self.canvas.endMove(copy=True)
         for shape in self.canvas.selectedShapes:
-            self.addLabel(shape)
+            self.addShape(shape)
         self.shapeList.clearSelection()
         self.setDirty()
 
