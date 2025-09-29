@@ -35,6 +35,9 @@ class ShapeDict(TypedDict):
     group_id: Optional[int]
     mask: Optional[NDArray[np.bool]]
     other_data: dict
+    idx: int
+    ocr_text: Optional[str]
+    shapes: list
 
 
 def _load_shape_json_obj(shape_json_obj: dict) -> ShapeDict:
@@ -46,6 +49,9 @@ def _load_shape_json_obj(shape_json_obj: dict) -> ShapeDict:
         "flags",
         "description",
         "mask",
+        "idx",
+        "ocr_text",
+        "shapes",
     }
 
     assert "label" in shape_json_obj, f"label is required: {shape_json_obj}"
@@ -104,6 +110,30 @@ def _load_shape_json_obj(shape_json_obj: dict) -> ShapeDict:
             f"mask must be base64-encoded PNG: {shape_json_obj['mask']}"
         )
         mask = utils.img_b64_to_arr(shape_json_obj["mask"]).astype(bool)
+        
+    # 新增字段
+    idx: int = 0
+    if shape_json_obj.get("idx") is not None:
+        assert isinstance(shape_json_obj["idx"], int), (
+            f"idx must be int: {shape_json_obj['idx']}"
+        )
+        idx = shape_json_obj["idx"]
+        
+    ocr_text: Optional[str] = None
+    if shape_json_obj.get("ocr_text") is not None:
+        assert isinstance(shape_json_obj["ocr_text"], str) or shape_json_obj["ocr_text"] is None, (
+            f"ocr_text must be str or None: {shape_json_obj['ocr_text']}"
+        )
+        ocr_text = shape_json_obj["ocr_text"]
+        
+    # 递归加载子shapes
+    shapes = []
+    if shape_json_obj.get("shapes") is not None:
+        assert isinstance(shape_json_obj["shapes"], list), (
+            f"shapes must be list: {shape_json_obj['shapes']}"
+        )
+        for child_shape in shape_json_obj["shapes"]:
+            shapes.append(_load_shape_json_obj(child_shape))
 
     other_data = {k: v for k, v in shape_json_obj.items() if k not in SHAPE_KEYS}
 
@@ -116,8 +146,10 @@ def _load_shape_json_obj(shape_json_obj: dict) -> ShapeDict:
         group_id=group_id,
         mask=mask,
         other_data=other_data,
+        idx=idx,
+        ocr_text=ocr_text,
+        shapes=shapes,
     )
-    assert set(loaded.keys()) == SHAPE_KEYS | {"other_data"}
     return loaded
 
 

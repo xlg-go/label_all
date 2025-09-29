@@ -15,9 +15,10 @@ class _EscapableQListWidget(QtWidgets.QListWidget):
 
 
 class UniqueLabelQListWidget(_EscapableQListWidget):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, get_rgb_by_label=None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.setItemDelegate(HTMLDelegate(parent=self))
+        self.get_rgb_by_label = get_rgb_by_label
 
     def mousePressEvent(self, event):
         super().mousePressEvent(event)
@@ -31,14 +32,16 @@ class UniqueLabelQListWidget(_EscapableQListWidget):
                 return item
         return None
 
-    def add_label_item(self, label: str, color: tuple[int, int, int]) -> None:
+    def add_label_item(self, label: str) -> None:
         if self.find_label_item(label):
             raise ValueError(f"Item for label '{label}' already exists")
 
         item = QtWidgets.QListWidgetItem()
         item.setData(Qt.UserRole, label)  # for find_label_item
+
+        r, g, b = self.get_rgb_by_label(label)
         item.setText(
             f"{html.escape(label)} "
-            f"<font color='#{color[0]:02x}{color[1]:02x}{color[2]:02x}'>●</font>"
+            f"<font color='#{r:02x}{g:02x}{b:02x}'>●</font>"
         )
         self.addItem(item)

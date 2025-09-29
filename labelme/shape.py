@@ -50,6 +50,9 @@ class Shape:
         group_id=None,
         description=None,
         mask=None,
+        idx=0,
+        ocr_text=None,
+        shapes=None,
     ):
         self.label = label
         self.group_id = group_id
@@ -65,6 +68,9 @@ class Shape:
         self.description = description
         self.other_data = {}
         self.mask = mask
+        self.idx = idx
+        self.ocr_text = ocr_text
+        self.shapes = shapes or []
 
         self._highlightIndex = None
         self._highlightMode = self.NEAR_VERTEX
@@ -399,3 +405,16 @@ class Shape:
 
     def __setitem__(self, key, value):
         self.points[key] = value
+        
+    def updateOcrText(self):
+        """更新ocr_text，根据子shapes的ocr_text拼接"""
+        if not self.shapes:
+            return
+            
+        texts = []
+        for shape in self.shapes:
+            if shape.ocr_text:
+                texts.append(shape.ocr_text)
+                
+        if texts:
+            self.ocr_text = "".join(texts)
