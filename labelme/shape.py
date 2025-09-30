@@ -407,7 +407,7 @@ class Shape:
         self.points[key] = value
         
     def updateOcrText(self):
-        """更新ocr_text，根据子shapes的ocr_text拼接"""
+        """更新ocr_text, 根据子shapes的ocr_text拼接"""
         if not self.shapes:
             return
             

@@ -208,6 +208,19 @@ class MainWindow(QtWidgets.QMainWindow):
             if self._config[dock]["show"] is False:
                 getattr(self, dock).setVisible(False)
 
+        # 设置右侧dock的默认宽度
+        default_dock_width = 500
+        min_dock_width = 200
+        # 设置最小宽度
+        for dock in [self.flag_dock, self.label_dock, self.shape_dock, self.file_dock]:
+            dock.setMinimumWidth(min_dock_width)
+        # 使用resizeDocks方法统一设置宽度（需要在窗口显示后调用）
+        QtCore.QTimer.singleShot(100, lambda: self.resizeDocks(
+            [self.flag_dock, self.label_dock, self.shape_dock, self.file_dock],
+            [default_dock_width] * 4,
+            Qt.Horizontal
+        ))
+
         self.addDockWidget(Qt.RightDockWidgetArea, self.flag_dock)
         self.addDockWidget(Qt.RightDockWidgetArea, self.label_dock)
         self.addDockWidget(Qt.RightDockWidgetArea, self.shape_dock)

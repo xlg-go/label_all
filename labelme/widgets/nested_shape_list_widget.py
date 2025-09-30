@@ -83,12 +83,9 @@ class NestedShapeTreeItem(QtGui.QStandardItem):
     def updateDisplay(self):
         """更新显示内容"""
         if self.shape():
-            # 设置第一列为 label_idx
+            # 设置第一列为 label
             shape = self.shape()
-            if shape.label and shape.idx is not None:
-                label_text = f"{shape.label}_{shape.idx}"
-            else:
-                label_text = shape.label if shape.label else f"_{shape.idx}" if shape.idx is not None else ""
+            label_text = shape.label if shape.label else ""
             
             self.setText(f'{html.escape(label_text)}')
 
@@ -114,8 +111,8 @@ class NestedShapeTreeModel(QtGui.QStandardItemModel):
     
     def __init__(self):
         super().__init__()
-        self.setColumnCount(2)  # 第一列显示label_idx，第二列显示ocr_text
-        self.setHorizontalHeaderLabels(["标签", "文本"])
+        self.setColumnCount(3)  # 第一列显示label，第二列显示idx，第三列显示ocr_text
+        self.setHorizontalHeaderLabels(["标签", "顺序", "文本"])
         
     def removeRows(self, *args, **kwargs):
         ret = super().removeRows(*args, **kwargs)
@@ -180,10 +177,27 @@ class NestedShapeTreeModel(QtGui.QStandardItemModel):
             
         shape = item.shape()
         if shape:
-            # 更新第一列：label_idx
-            label_text = html.escape(f"{shape.label}_{shape.idx}")
+            # 更新第一列：label
+            label_text = html.escape(shape.label if shape.label else "")
             r, g, b = shape.line_color.getRgb()[:3]
             item.setText(f'{label_text} <font color="#{r:02x}{g:02x}{b:02x}">●</font>')
+            
+            # 更新第二列：idx
+            parent = item.parent()
+            if parent:
+                idx_item = parent.child(item.row(), 1)
+            else:
+                idx_item = self.item(item.row(), 1)
+            if idx_item:
+                idx_item.setText(str(shape.idx) if shape.idx is not None else "")
+            
+            # 更新第三列：ocr_text
+            if parent:
+                ocr_item = parent.child(item.row(), 2)
+            else:
+                ocr_item = self.item(item.row(), 2)
+            if ocr_item:
+                ocr_item.setText(shape.ocr_text or "")
 
 
 # 嵌套标签树视图
@@ -202,8 +216,9 @@ class NestedShapeTreeWidget(QTreeView):
         self.setModel(self._model)
 
         # 设置列宽
-        self.header().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.header().setSectionResizeMode(0, QHeaderView.Stretch)
         self.header().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.header().setSectionResizeMode(2, QHeaderView.Stretch)
         
         # 设置代理
         self.setItemDelegate(HTMLDelegate())
@@ -222,7 +237,7 @@ class NestedShapeTreeWidget(QTreeView):
         
         # 启用排序
         self.setSortingEnabled(True)
-        self.sortByColumn(0, Qt.AscendingOrder)  # 默认按第一列升序排序
+        self.sortByColumn(1, Qt.AscendingOrder)  # 默认按第一列升序排序
 
         # 连接信号
         self.doubleClicked.connect(self.itemDoubleClickedEvent)
@@ -248,8 +263,8 @@ class NestedShapeTreeWidget(QTreeView):
 
     def addShape(self, shape, parent_item=None):
         """添加Shape到树中"""
-        # 创建标签项
-        label_text = html.escape(f"{shape.label}_{shape.idx}")
+        # 创建标签项（第一列）
+        label_text = html.escape(shape.label if shape.label else "")
         r, g, b = shape.line_color.getRgb()[:3]
         item = NestedShapeTreeItem(
             f'{label_text} <font color="#{r:02x}{g:02x}{b:02x}">●</font>', 
@@ -257,15 +272,19 @@ class NestedShapeTreeWidget(QTreeView):
             parent_item.shape() if parent_item else None
         )
         
-        # 创建文本项
+        # 创建索引项（第二列）
+        idx_item = QtGui.QStandardItem(str(shape.idx) if shape.idx is not None else "")
+        idx_item.setEditable(False)
+        
+        # 创建文本项（第三列）
         ocr_item = QtGui.QStandardItem(shape.ocr_text or "")
         ocr_item.setEditable(False)
         
         # 添加到模型
         if parent_item:
-            parent_item.appendRow([item, ocr_item])
+            parent_item.appendRow([item, idx_item, ocr_item])
         else:
-            self._model.appendRow([item, ocr_item])
+            self._model.appendRow([item, idx_item, ocr_item])
         
         # 递归添加子Shape
         for child_shape in shape.shapes:
@@ -319,8 +338,8 @@ class NestedShapeTreeWidget(QTreeView):
     def clear(self):
         """清空树"""
         self._model.clear()
-        self._model.setColumnCount(2)
-        self._model.setHorizontalHeaderLabels(["标签", "文本"])
+        self._model.setColumnCount(3)
+        self._model.setHorizontalHeaderLabels(["标签", "顺序", "文本"])
 
     @property
     def itemDropped(self):

@@ -1,0 +1,90 @@
+{
+  "version": "4.0.0",
+  "flags": {},
+  "shapes": [
+    {
+      "label": "building",
+      "points": [
+        [100, 100],
+        [400, 100],
+        [400, 300],
+        [100, 300]
+      ],
+      "group_id": null,
+      "shape_type": "polygon",
+      "flags": {},
+      "shapes": [
+        {
+          "label": "window",
+          "points": [
+            [150, 150],
+            [200, 150],
+            [200, 200],
+            [150, 200]
+          ],
+          "group_id": null,
+          "shape_type": "rectangle",
+          "flags": {},
+          "shapes": []
+        },
+        {
+          "label": "door",
+          "points": [
+            [250, 200],
+            [300, 200],
+            [300, 280],
+            [250, 280]
+          ],
+          "group_id": null,
+          "shape_type": "rectangle",
+          "flags": {},
+          "shapes": []
+        }
+      ]
+    },
+    {
+      "label": "car",
+      "points": [
+        [450, 250],
+        [550, 250],
+        [550, 300],
+        [450, 300]
+      ],
+      "group_id": null,
+      "shape_type": "rectangle",
+      "flags": {},
+      "shapes": [
+        {
+          "label": "wheel",
+          "points": [
+            [470, 290],
+            [490, 290],
+            [490, 310],
+            [470, 310]
+          ],
+          "group_id": null,
+          "shape_type": "circle",
+          "flags": {},
+          "shapes": []
+        },
+        {
+          "label": "wheel",
+          "points": [
+            [510, 290],
+            [530, 290],
+            [530, 310],
+            [510, 310]
+          ],
+          "group_id": null,
+          "shape_type": "circle",
+          "flags": {},
+          "shapes": []
+        }
+      ]
+    }
+  ],
+  "imagePath": "test_image.jpg",
+  "imageData": null,
+  "imageHeight": 400,
+  "imageWidth": 600
+}
