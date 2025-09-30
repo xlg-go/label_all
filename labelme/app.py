@@ -115,8 +115,7 @@ class MainWindow(QtWidgets.QMainWindow):
             fit_to_content=self._config["fit_to_content"],
             flags=self._config["label_flags"],
         )
-
-        self.shapeList = NestedShapeTreeWidget(get_rgb_by_label=self._get_rgb_by_label)
+        
         self.lastOpenDir = None
 
         self.flag_dock = self.flag_widget = None
@@ -128,6 +127,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.flag_dock.setWidget(self.flag_widget)
         self.flag_widget.itemChanged.connect(self.setDirty)
 
+        self.shapeList = NestedShapeTreeWidget()
         self.shapeList.itemSelectionChanged.connect(self.labelSelectionChanged)
         self.shapeList.itemDoubleClicked.connect(self._edit_label)
         # 条件连接信号，避免属性不存在的错误
@@ -1238,14 +1238,14 @@ class MainWindow(QtWidgets.QMainWindow):
                 shape.description = description
 
             self._update_shape_color(shape)
-            if shape.group_id is None:
-                r, g, b = shape.fill_color.getRgb()[:3]
-                item.setText(
-                    f"{html.escape(shape.label)} "
-                    f'<font color="#{r:02x}{g:02x}{b:02x}">●</font>'
-                )
-            else:
-                item.setText(f"{shape.label} ({shape.group_id})")
+            # if shape.group_id is None:
+            #     r, g, b = shape.fill_color.getRgb()[:3]
+            #     item.setText(
+            #         f"{html.escape(shape.label)} "
+            #         f'<font color="#{r:02x}{g:02x}{b:02x}">●</font>'
+            #     )
+            # else:
+            #     item.setText(f"{shape.label} ({shape.group_id})")
             self.setDirty()
             if self.uniqLabelList.find_label_item(shape.label) is None:
                 self.uniqLabelList.add_label_item(label=shape.label)
@@ -1292,19 +1292,14 @@ class MainWindow(QtWidgets.QMainWindow):
         self.actions.edit.setEnabled(n_selected)
 
     def addShape(self, shape, parent_item=None):
-        # 使用NestedShapeTreeWidget的addShape方法添加形状
+        # 使用NestedShapeTreeWidget的 addShape 方法 递归添加子形状
         item = self.shapeList.addShape(shape, parent_item)
-        
-        # 更新唯一标签列表
-        if self.uniqLabelList.find_label_item(shape.label) is None:
-            self.uniqLabelList.add_label_item(label=shape.label)
         
         self.labelDialog.addLabelHistory(shape.label)
         for action in self.actions.onShapesPresent:
             action.setEnabled(True)
-            
-        # 注意：不需要在这里递归添加子形状，因为NestedShapeTreeWidget.addShape已经处理了子形状
-        # NestedShapeTreeWidget.addShape方法中已经递归添加了子形状，这里不需要重复添加
+        
+        # self._update_shape_color(shape)
         
         return item
 
@@ -1365,7 +1360,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._noSelectionSlot = False
         self.canvas.loadShapes(shapes, replace=replace)
 
-    def _load_shape_dicts(self, shape_dicts: list[ShapeDict]) -> None:
+    def _load_shape_dicts(self, shape_dicts: list[ShapeDict]) -> list[Shape]:
+        """加载形状字典，支持递归加载子形状"""
         shapes: list[Shape] = []
         shape_dict: ShapeDict
         for shape_dict in shape_dicts:
@@ -1380,7 +1376,13 @@ class MainWindow(QtWidgets.QMainWindow):
             )
             for x, y in shape_dict["points"]:
                 shape.addPoint(QtCore.QPointF(x, y))
+
+            self._update_shape_color(shape)
             shape.close()
+            
+            # 确保子形状的标签也被添加到唯一标签列表
+            if self.uniqLabelList.find_label_item(shape.label) is None:
+                self.uniqLabelList.add_label_item(label=shape.label)
 
             default_flags = {}
             if self._config["label_flags"]:
@@ -1392,51 +1394,16 @@ class MainWindow(QtWidgets.QMainWindow):
             
             # 递归加载子形状
             if "shapes" in shape_dict and shape_dict["shapes"]:
-                child_shapes = self._load_child_shapes(shape_dict["shapes"])
+                child_shapes = self._load_shape_dicts(shape_dict["shapes"])
                 shape.shapes = child_shapes
                 
             shape.flags.update(shape_dict["flags"])
             shape.other_data = shape_dict["other_data"]
             shapes.append(shape)
-        self.loadShapes(shapes)
+            
+        return shapes
                 
-    def _load_child_shapes(self, shape_dicts: list[ShapeDict]) -> list[Shape]:
-        """递归加载子形状"""
-        child_shapes = []
-        for shape_dict in shape_dicts:
-            shape = Shape(
-                label=shape_dict["label"],
-                shape_type=shape_dict["shape_type"],
-                group_id=shape_dict["group_id"],
-                description=shape_dict["description"],
-                mask=shape_dict["mask"],
-                idx=shape_dict.get("idx", 0),
-                ocr_text=shape_dict.get("ocr_text", ""),
-            )
-            for x, y in shape_dict["points"]:
-                shape.addPoint(QtCore.QPointF(x, y))
-            shape.close()
-            
-            # 确保子形状的标签也被添加到唯一标签列表
-            if self.uniqLabelList.find_label_item(shape.label) is None:
-                self.uniqLabelList.add_label_item(label=shape.label)
-            
-            # 设置标志
-            default_flags = {}
-            if self._config["label_flags"]:
-                for pattern, keys in self._config["label_flags"].items():
-                    if re.match(pattern, shape.label):
-                        for key in keys:
-                            default_flags[key] = False
-            shape.flags = default_flags
-            shape.flags.update(shape_dict["flags"])
-            
-            # 递归处理子形状
-            if "shapes" in shape_dict and shape_dict["shapes"]:
-                shape.shapes = self._load_child_shapes(shape_dict["shapes"])
-                
-            child_shapes.append(shape)
-        return child_shapes
+
 
     def loadFlags(self, flags):
         self.flag_widget.clear()  # type: ignore[union-attr]
@@ -1771,7 +1738,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.canvas.loadPixmap(QtGui.QPixmap.fromImage(image))
         flags = {k: False for k in self._config["flags"] or []}
         if self.labelFile:
-            self._load_shape_dicts(shape_dicts=self.labelFile.shapes)
+            shapes = self._load_shape_dicts(shape_dicts=self.labelFile.shapes)
+            self.loadShapes(shapes)
             if self.labelFile.flags is not None:
                 flags.update(self.labelFile.flags)
         self.loadFlags(flags)

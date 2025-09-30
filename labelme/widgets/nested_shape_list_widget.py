@@ -112,11 +112,10 @@ class NestedShapeTreeItem(QtGui.QStandardItem):
 class NestedShapeTreeModel(QtGui.QStandardItemModel):
     itemDropped = QtCore.pyqtSignal()
     
-    def __init__(self, get_rgb_by_label=None):
+    def __init__(self):
         super().__init__()
         self.setColumnCount(2)  # 第一列显示label_idx，第二列显示ocr_text
         self.setHorizontalHeaderLabels(["标签", "文本"])
-        self.get_rgb_by_label = get_rgb_by_label
         
     def removeRows(self, *args, **kwargs):
         ret = super().removeRows(*args, **kwargs)
@@ -183,7 +182,7 @@ class NestedShapeTreeModel(QtGui.QStandardItemModel):
         if shape:
             # 更新第一列：label_idx
             label_text = html.escape(f"{shape.label}_{shape.idx}")
-            r, g, b = self.get_rgb_by_label(shape.label)
+            r, g, b = shape.line_color.getRgb()[:3]
             item.setText(f'{label_text} <font color="#{r:02x}{g:02x}{b:02x}">●</font>')
 
 
@@ -193,13 +192,13 @@ class NestedShapeTreeWidget(QTreeView):
     itemSelectionChanged = QtCore.pyqtSignal(list, list)
     itemChanged = QtCore.pyqtSignal(object)
     
-    def __init__(self, parent=None, get_rgb_by_label=None):
+    def __init__(self, parent=None):
         super().__init__(parent)
         self._selectedItems = []
 
         self.setWindowFlags(Qt.Window)
 
-        self._model = NestedShapeTreeModel(get_rgb_by_label=get_rgb_by_label)
+        self._model = NestedShapeTreeModel()
         self.setModel(self._model)
 
         # 设置列宽
@@ -229,8 +228,6 @@ class NestedShapeTreeWidget(QTreeView):
         self.doubleClicked.connect(self.itemDoubleClickedEvent)
         self.selectionModel().selectionChanged.connect(self.itemSelectionChangedEvent)
 
-        self.get_rgb_by_label = get_rgb_by_label
-
     def itemSelectionChangedEvent(self, selected, deselected):
         selected = [self._model.itemFromIndex(i) for i in selected.indexes() if i.column() == 0]
         deselected = [self._model.itemFromIndex(i) for i in deselected.indexes() if i.column() == 0]
@@ -253,7 +250,7 @@ class NestedShapeTreeWidget(QTreeView):
         """添加Shape到树中"""
         # 创建标签项
         label_text = html.escape(f"{shape.label}_{shape.idx}")
-        r, g, b = self.get_rgb_by_label(shape.label)
+        r, g, b = shape.line_color.getRgb()[:3]
         item = NestedShapeTreeItem(
             f'{label_text} <font color="#{r:02x}{g:02x}{b:02x}">●</font>', 
             shape,

@@ -565,20 +565,31 @@ class Canvas(QtWidgets.QWidget):
             assert self.hShape is not None
             self.hShape.highlightVertex(i=self.hVertex, action=self.hShape.MOVE_VERTEX)
         else:
-            shape: Shape
-            for shape in reversed(self.shapes):
-                if self.isVisible(shape) and shape.containsPoint(point):
-                    self.setHiding()
-                    if shape not in self.selectedShapes:
-                        if multiple_selection_mode:
-                            self.selectionChanged.emit(self.selectedShapes + [shape])
-                        else:
-                            self.selectionChanged.emit([shape])
-                        self.hShapeIsSelected = False
+            # 递归查找包含点的shape
+            def find_shape_recursive(shape_list, point):
+                for shape in reversed(shape_list):
+                    if self.isVisible(shape) and shape.containsPoint(point):
+                        # 先检查子shape是否包含该点
+                        if hasattr(shape, 'shapes') and shape.shapes:
+                            child_shape = find_shape_recursive(shape.shapes, point)
+                            if child_shape:
+                                return child_shape
+                        return shape
+                return None
+                
+            shape = find_shape_recursive(self.shapes, point)
+            if shape:
+                self.setHiding()
+                if shape not in self.selectedShapes:
+                    if multiple_selection_mode:
+                        self.selectionChanged.emit(self.selectedShapes + [shape])
                     else:
-                        self.hShapeIsSelected = True
-                    self.calculateOffsets(point)
-                    return
+                        self.selectionChanged.emit([shape])
+                    self.hShapeIsSelected = False
+                else:
+                    self.hShapeIsSelected = True
+                self.calculateOffsets(point)
+                return
         self.deSelectShape()
 
     def calculateOffsets(self, point: QPointF) -> None:
@@ -650,7 +661,18 @@ class Canvas(QtWidgets.QWidget):
         deleted_shapes = []
         if self.selectedShapes:
             for shape in self.selectedShapes:
-                self.shapes.remove(shape)
+                # 递归删除子shape
+                def remove_shape_recursive(shape_list, target_shape):
+                    if target_shape in shape_list:
+                        shape_list.remove(target_shape)
+                        return True
+                    for s in shape_list:
+                        if hasattr(s, 'shapes') and s.shapes:
+                            if remove_shape_recursive(s.shapes, target_shape):
+                                return True
+                    return False
+                
+                remove_shape_recursive(self.shapes, shape)
                 deleted_shapes.append(shape)
             self.storeShapes()
             self.selectedShapes = []
@@ -704,10 +726,20 @@ class Canvas(QtWidgets.QWidget):
             )
 
         Shape.scale = self.scale
-        for shape in self.shapes:
-            if (shape.selected or not self._hideBackround) and self.isVisible(shape):
-                shape.fill = shape.selected or shape == self.hShape
-                shape.paint(p)
+        
+        # 递归绘制shape及其子shape的函数
+        def paint_shape_recursive(shape_list):
+            for shape in shape_list:
+                if (shape.selected or not self._hideBackround) and self.isVisible(shape):
+                    shape.fill = shape.selected or shape == self.hShape
+                    shape.paint(p)
+                    # 递归绘制子shape
+                    if hasattr(shape, 'shapes') and shape.shapes:
+                        paint_shape_recursive(shape.shapes)
+        
+        # 绘制所有shape及其子shape
+        paint_shape_recursive(self.shapes)
+        
         if self.current:
             self.current.paint(p)
             assert len(self.line.points) == len(self.line.point_labels)
@@ -968,6 +1000,10 @@ class Canvas(QtWidgets.QWidget):
 
     def setShapeVisible(self, shape, value):
         self.visible[shape] = value
+        # 递归设置子shape的可见性
+        if hasattr(shape, 'shapes') and shape.shapes:
+            for child_shape in shape.shapes:
+                self.setShapeVisible(child_shape, value)
         self.update()
 
     def overrideCursor(self, cursor):
